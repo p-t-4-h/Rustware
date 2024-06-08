@@ -3,12 +3,12 @@ use windows::{
         System::{
             Memory::{VirtualAllocEx, MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE},
             Diagnostics::Debug::WriteProcessMemory, 
-            Threading::{OpenProcess, PROCESS_ALL_ACCESS},
+            Threading::{CreateRemoteThreadEx, OpenProcess, WaitForSingleObject, PROCESS_ALL_ACCESS, INFINITE},
         },
         Foundation::CloseHandle,
     },
 };
-use std::{ptr::null_mut, process};
+use std::{ptr::{self, null_mut, null}, process, mem};
 
 fn main() {
 
@@ -35,7 +35,7 @@ fn main() {
     unsafe {
         println!("[i] Trying to open a Handle for the Process");
         match OpenProcess(PROCESS_ALL_ACCESS, false, process::id()) {
-            Ok(hprocess) => {
+            Ok(hprocess) => 'p: {
                 let haddr = VirtualAllocEx(
                     hprocess,
                     Some(null_mut()),
@@ -60,8 +60,32 @@ fn main() {
                         eprintln!("[!] WriteProcessMemory Failed With Error: {}", e);
                         let _ = CloseHandle(hprocess);
                         process::exit(-1);
-                        }
-                    );
+                    }
+                );
+                
+                println!("[+] Creating a Remote Thread");
+                let hthread = CreateRemoteThreadEx(
+                    hprocess,
+                    Some(null()),
+                    0,
+                    Some(mem::transmute(haddr)),
+                    Some(null()),
+                    0,
+                    None,
+                    Some(null_mut()),).unwrap_or_else(|e| {
+                        eprintln!("[!] CreateRemoteThreadEx Failed With Error: {}", e);
+                        let _ = CloseHandle(hprocess);
+                        process::exit(-1);
+                    }
+                );
+
+                WaitForSingleObject(hthread, INFINITE);
+
+                let _ = CloseHandle(hprocess);
+                let _ = CloseHandle(hthread);
+
+                println!("[+] Executed!!");
+                break 'p;
             }
             Err(pid) => {
                 eprintln!("[!] Error Getting Process Identifier {pid}");
