@@ -88,24 +88,17 @@ fn main() {
                     }
                 );
 
-                println!("[+] Executed!");
-
                 WaitForSingleObject(hthread, INFINITE);
 
-                if hthread {
-                    let _ = CloseHandle(hthread);
-                    println!("[i] Closed thread handle {:p}", hthread);
-                }
+                let _ = CloseHandle(hthread);
+                println!("[i] Closed thread handle");
 
-                if hprocess {
-                    let _ = CloseHandle(hprocess);
-                    println!("[i] Closed process handle {:p}", hprocess);
-                }
-                
-                if {
-                    let _ = VirtualFree(haddr, 0, MEM_RELEASE);
-                    println!("[i] Memory released");
-                }
+                let _ = CloseHandle(hprocess);
+                println!("[i] Closed process handle");
+
+                let _ = VirtualFree(haddr, 0, MEM_RELEASE);
+                println!("[i] Memory released");
+
 
                 println!("[+] Executed!");
                 break 'p;
