@@ -30,14 +30,30 @@ fn getHashFromFunc(funcName: &str) -> u32 {
 }
 
 fn getFuncAddressByHash(lib: &str, hash: u32){
-    let functionAddress: *mut u16 = 0 as *mut u16;
+    unsafe {
+        let functionAddress: *mut u16 = ptr::null_mut();
 
-    let lib_ptr: PCSTR = unsafe {mem::transmute(format!("{}\0", lib).as_ptr())};
+        let lib_ptr: PCSTR = PCSTR::from_raw(format!("{}\0", lib).as_ptr());
 
-    let libBase: Result<HMODULE> = unsafe {LoadLibraryA(lib_ptr)};
-    match libBase {
-        Ok(h) => println!("[+] Module injected! Handle: {:?}", h),
-        Err(e) => process::exit(-1),
+        let libBase: Result<HMODULE> = LoadLibraryA(lib_ptr);
+
+        match libBase {
+            Ok(h) => {
+                println!("[+] Module injected! Handle: {:?}", h);
+
+                let base_ptr = h.0 as *const u8;
+                println!("[i] Base pointer address {:p}", base_ptr);
+                
+                let imgDosHeader: &IMAGE_DOS_HEADER = &*(base_ptr as *const IMAGE_DOS_HEADER);
+                
+                let nt_headers_addr = base_ptr.add(imgDosHeader.e_lfanew as usize);
+
+                let img_nt_headers: &IMAGE_NT_HEADERS32 = &*(nt_headers_addr as *const IMAGE_NT_HEADERS32);
+
+            },
+
+            Err(e) => process::exit(-1),
+        }
     }
 }
 
