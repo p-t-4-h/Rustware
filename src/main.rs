@@ -1,15 +1,36 @@
 #![allow(unused_imports)]
+#![allow(non_snake_case)]
+#![allow(unused_variables)]
 use windows::{
     Win32::{
         System::{
             Memory::{VirtualAllocEx, VirtualProtectEx, VirtualFree, MEM_COMMIT, MEM_RESERVE, MEM_RELEASE, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, PAGE_READWRITE},
             Diagnostics::Debug::{WriteProcessMemory, IsDebuggerPresent, CheckRemoteDebuggerPresent}, 
             Threading::{CreateRemoteThreadEx, OpenProcess, WaitForSingleObject, PROCESS_ALL_ACCESS, INFINITE},
+            LibraryLoader::LoadLibraryA,
         },
         Foundation::{CloseHandle, BOOL},
     },
 };
 use std::{ptr::{self, null_mut, null}, process, mem};
+
+
+fn getHashFromFunc(funcName: &str) -> u32 {
+    // let stringLength: usize = funcName.len();
+    let mut hash: u32 = 0x35;
+
+    for c in funcName.chars() {
+        hash = (hash.wrapping_mul(0xab10f29f) + c as u32) & 0xffffff;
+    }
+
+    hash
+}
+
+fn getFuncAddressByHash(lib: &str, hash: u32){
+    let functionAddress: *mut u16 = 0 as *mut u16;
+
+}
+
 
 fn main() {
 
@@ -26,6 +47,9 @@ fn main() {
         0x63, 0x61, 0x6c, 0x63, 0x2e, 0x65, 0x78, 0x65, 0x51, 0x48, 0x8d, 0x0c, 0x24, 0x48, 0x31, 0xd2,
         0x48, 0xff, 0xc2, 0x48, 0x83, 0xec, 0x28, 0xff, 0xd0,
     ];
+
+
+    getHashFromFunc("Test");
 
     let pid = process::id();
 
