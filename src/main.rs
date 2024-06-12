@@ -6,10 +6,10 @@ use windows::{
     Win32::{
         System::{
             Memory::{VirtualAllocEx, VirtualProtectEx, VirtualFree, MEM_COMMIT, MEM_RESERVE, MEM_RELEASE, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, PAGE_READWRITE},
-            Diagnostics::Debug::{WriteProcessMemory, IsDebuggerPresent, CheckRemoteDebuggerPresent, IMAGE_NT_HEADERS32, IMAGE_NT_HEADERS64}, 
+            Diagnostics::Debug::{WriteProcessMemory, IsDebuggerPresent, CheckRemoteDebuggerPresent, IMAGE_NT_HEADERS32, IMAGE_NT_HEADERS64, IMAGE_DIRECTORY_ENTRY_EXPORT}, 
             Threading::{CreateRemoteThreadEx, OpenProcess, WaitForSingleObject, PROCESS_ALL_ACCESS, INFINITE},
             LibraryLoader::LoadLibraryA,
-            SystemServices::IMAGE_DOS_HEADER,
+            SystemServices::{IMAGE_DOS_HEADER, IMAGE_EXPORT_DIRECTORY},
         },
         Foundation::{CloseHandle, BOOL, HMODULE},
     },
@@ -41,17 +41,20 @@ fn getFuncAddressByHash(lib: &str, hash: u32){
             Ok(h) => {
                 println!("[+] Module Handle: {:?}", h);
 
-                let base_ptr = h.0 as *const u8;
+                let base_ptr: *const u8 = h.0 as *const u8;
                 println!("[i] Base pointer address {:?}", base_ptr);
                 
-                let imgDosHeader: &IMAGE_DOS_HEADER = &*(base_ptr as *const IMAGE_DOS_HEADER);
+                let img_dos_header: &IMAGE_DOS_HEADER = &*(base_ptr as *const IMAGE_DOS_HEADER);
 
-                let nt_headers_addr = base_ptr.add(imgDosHeader.e_lfanew as usize);
+                let nt_headers_addr = base_ptr.add(img_dos_header.e_lfanew as usize);
                 println!("[i] IMG_NT_HEADER address: {:?}", nt_headers_addr);
 
                 let img_nt_headers: &IMAGE_NT_HEADERS32 = &*(nt_headers_addr as *const IMAGE_NT_HEADERS32);
                 
+                let export_directory_RVA: *const u32 = img_nt_headers.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT.0 as usize].VirtualAddress as *const u32;
+                println!("[i] export directory RVA address: {:?}", export_directory_RVA);
 
+                let img_export_directory = 
             },
 
             Err(e) => process::exit(-1),
