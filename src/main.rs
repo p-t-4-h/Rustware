@@ -29,9 +29,9 @@ fn getHashFromFunc(funcName: &str) -> u32 {
     hash
 }
 
-fn getFuncAddressByHash(lib: &str, hash: u32){
+fn getFuncAddressByHash(lib: &str, hash: u64){
     unsafe {
-        let functionAddress: *mut u32 = ptr::null_mut();
+        let functionAddress: *mut u64 = ptr::null_mut();
 
         let lib_ptr: PCSTR = PCSTR::from_raw(format!("{}\0", lib).as_ptr());
 
@@ -41,31 +41,39 @@ fn getFuncAddressByHash(lib: &str, hash: u32){
             Ok(h) => {
                 let base_ptr: *const u8 = h.0 as *const u8;
                 println!("[+] Module Handle: {:?}", base_ptr);
-                println!("[i] Base pointer address {:?}", base_ptr);
                 
                 let img_dos_header: &IMAGE_DOS_HEADER = &*(base_ptr as *const IMAGE_DOS_HEADER);
 
                 let nt_headers_addr = base_ptr.add(img_dos_header.e_lfanew as usize);
                 println!("[i] IMG_NT_HEADER address: {:?}", nt_headers_addr);
 
-                let img_nt_headers: &IMAGE_NT_HEADERS32 = &*(nt_headers_addr as *const IMAGE_NT_HEADERS32);
-                
-                let export_directory_RVA: *const u32 = img_nt_headers.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT.0 as usize].VirtualAddress as *const u32;
+                let img_nt_headers: &IMAGE_NT_HEADERS64 = &*(nt_headers_addr as *const IMAGE_NT_HEADERS64);
+                //println!("{:?}", img_nt_headers);
+
+                let export_directory_RVA: *const u64 = img_nt_headers.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT.0 as usize].VirtualAddress as *const u64;
                 println!("[i] export directory RVA address: {:?}", export_directory_RVA);
 
                 let export_directory_addr = base_ptr.add(export_directory_RVA as usize);
                 println!("[i] export directory address: {:?}", export_directory_addr);
 
                 let img_export_directory: &IMAGE_EXPORT_DIRECTORY = &*(export_directory_addr as *const IMAGE_EXPORT_DIRECTORY);
+                //println!("{:?}", img_export_directory);
 
-                let addr_fun_RVA: *const u32 = base_ptr.add(img_export_directory.AddressOfFunctions as usize) as *const u32;
+                let addr_fun_RVA: *const u64 = base_ptr.add(img_export_directory.AddressOfFunctions as usize) as *const u64;
                 println!("[i] address of function RVA : {:?}", addr_fun_RVA);
 
-                let addr_names_RVA: *const u32 = base_ptr.add(img_export_directory.AddressOfNames as usize) as *const u32;
+                let addr_names_RVA: *const u64 = base_ptr.add(img_export_directory.AddressOfNames as usize) as *const u64;
                 println!("[i] address of names RVA : {:?}", addr_names_RVA);
 
-                let addr_names_ordinals_RVA: *const u32 = base_ptr.add(img_export_directory.AddressOfNameOrdinals as usize) as *const u32;
+                let addr_names_ordinals_RVA: *const u64 = base_ptr.add(img_export_directory.AddressOfNameOrdinals as usize) as *const u64;
                 println!("[i] address of names ordinals RVA : {:?}", addr_names_ordinals_RVA);
+
+                let f_num = img_export_directory.NumberOfFunctions;
+                println!("[i] Number of functions : {:?}", f_num);
+
+                /*for i in 0..=f_num {
+                    println!("{i}");
+                }*/
             },
 
             Err(e) => process::exit(-1),
