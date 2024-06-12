@@ -54,7 +54,10 @@ fn getFuncAddressByHash(lib: &str, hash: u32){
                 let export_directory_RVA: *const u32 = img_nt_headers.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT.0 as usize].VirtualAddress as *const u32;
                 println!("[i] export directory RVA address: {:?}", export_directory_RVA);
 
-                let img_export_directory = 
+                let export_directory_addr = base_ptr.add(export_directory_RVA as usize);
+                println!("[i] export directory address: {:?}", export_directory_addr);
+                
+                let img_export_directory: &IMAGE_EXPORT_DIRECTORY = &*(export_directory_addr as *const IMAGE_EXPORT_DIRECTORY);
             },
 
             Err(e) => process::exit(-1),
