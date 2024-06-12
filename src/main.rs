@@ -71,11 +71,11 @@ fn getFuncAddressByHash(lib: &str, hash: u64){
                 let f_num: usize = img_export_directory.NumberOfFunctions as usize;
                 println!("[i] Number of functions : {:?}", f_num);
 
-                for i in 0..=f_num {
+                for i in 0..f_num {
                     let func_name_RVA: u64 = addr_names_RVA.add(i) as u64;
                     let func_name_VA: *const u64 = base_ptr.add(func_name_RVA as usize) as *const u64;
-                    let func_name: &str = str::from_utf8(slice::from_raw_parts(func_name_VA as *const u8, mem::size_of::<u64>()) as &[u8]).unwrap_or("");
                 }
+
             },
 
             Err(e) => process::exit(-1),
