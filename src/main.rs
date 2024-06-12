@@ -39,16 +39,18 @@ fn getFuncAddressByHash(lib: &str, hash: u32){
 
         match libBase {
             Ok(h) => {
-                println!("[+] Module injected! Handle: {:?}", h);
+                println!("[+] Module Handle: {:?}", h);
 
                 let base_ptr = h.0 as *const u8;
-                println!("[i] Base pointer address {:p}", base_ptr);
+                println!("[i] Base pointer address {:?}", base_ptr);
                 
                 let imgDosHeader: &IMAGE_DOS_HEADER = &*(base_ptr as *const IMAGE_DOS_HEADER);
-                
+
                 let nt_headers_addr = base_ptr.add(imgDosHeader.e_lfanew as usize);
+                println!("[i] IMG_NT_HEADER address: {:?}", nt_headers_addr);
 
                 let img_nt_headers: &IMAGE_NT_HEADERS32 = &*(nt_headers_addr as *const IMAGE_NT_HEADERS32);
+                
 
             },
 
