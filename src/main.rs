@@ -72,8 +72,10 @@ fn getFuncAddressByHash(lib: &str, hash: u64){
                 println!("[i] Number of functions : {:?}", f_num);
 
                 for i in 0..f_num {
-                    let func_name_RVA: u64 = addr_names_RVA.add(i) as u64;
+                    let func_name_RVA: u64 = addr_names_RVA.add(i*mem::size_of::<u64>()) as u64;
                     let func_name_VA: *const u64 = base_ptr.add(func_name_RVA as usize) as *const u64;
+
+                    //println!("{:?}", func_name_VA);
                 }
 
             },
