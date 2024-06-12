@@ -15,7 +15,7 @@ use windows::{
     },
     core::{PCSTR, Result},
 };
-use std::{ptr::{self, null_mut, null}, process, mem};
+use std::{ptr::{self, null_mut, null}, process, mem, str, slice};
 
 
 fn getHashFromFunc(funcName: &str) -> u32 {
@@ -59,8 +59,8 @@ fn getFuncAddressByHash(lib: &str, hash: u64){
                 let img_export_directory: &IMAGE_EXPORT_DIRECTORY = &*(export_directory_addr as *const IMAGE_EXPORT_DIRECTORY);
                 //println!("{:?}", img_export_directory);
 
-                let addr_fun_RVA: *const u64 = base_ptr.add(img_export_directory.AddressOfFunctions as usize) as *const u64;
-                println!("[i] address of function RVA : {:?}", addr_fun_RVA);
+                let addr_func_RVA: *const u64 = base_ptr.add(img_export_directory.AddressOfFunctions as usize) as *const u64;
+                println!("[i] address of function RVA : {:?}", addr_func_RVA);
 
                 let addr_names_RVA: *const u64 = base_ptr.add(img_export_directory.AddressOfNames as usize) as *const u64;
                 println!("[i] address of names RVA : {:?}", addr_names_RVA);
@@ -68,12 +68,14 @@ fn getFuncAddressByHash(lib: &str, hash: u64){
                 let addr_names_ordinals_RVA: *const u64 = base_ptr.add(img_export_directory.AddressOfNameOrdinals as usize) as *const u64;
                 println!("[i] address of names ordinals RVA : {:?}", addr_names_ordinals_RVA);
 
-                let f_num = img_export_directory.NumberOfFunctions;
+                let f_num: usize = img_export_directory.NumberOfFunctions as usize;
                 println!("[i] Number of functions : {:?}", f_num);
 
-                /*for i in 0..=f_num {
-                    println!("{i}");
-                }*/
+                for i in 0..=f_num {
+                    let func_name_RVA: u64 = addr_names_RVA.add(i) as u64;
+                    let func_name_VA: *const u64 = base_ptr.add(func_name_RVA as usize) as *const u64;
+                    let func_name: &str = str::from_utf8(slice::from_raw_parts(func_name_VA as *const u8, mem::size_of::<u64>()) as &[u8]).unwrap_or("");
+                }
             },
 
             Err(e) => process::exit(-1),
