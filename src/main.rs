@@ -15,9 +15,9 @@ use windows::{
     },
     core::{PCSTR, Result},
 };
-use std::{ptr::{self, null_mut, null}, process, mem, str, slice};
+use std::{ptr::{self, null_mut, null}, process, mem, str, slice, ffi::CStr};
 
-
+   
 fn getHashFromFunc(funcName: &str) -> u32 {
     // let stringLength: usize = funcName.len();
     let mut hash: u32 = 0x35;
@@ -50,7 +50,7 @@ fn getFuncAddressByHash(lib: &str, hash: u64){
                 let img_nt_headers: &IMAGE_NT_HEADERS64 = &*(nt_headers_addr as *const IMAGE_NT_HEADERS64);
                 //println!("{:?}", img_nt_headers);
 
-                let export_directory_RVA: *const u64 = img_nt_headers.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT.0 as usize].VirtualAddress as *const u64;
+                let export_directory_RVA: *const u32 = img_nt_headers.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT.0 as usize].VirtualAddress as *const u32;
                 println!("[i] export directory RVA address: {:?}", export_directory_RVA);
 
                 let export_directory_addr = base_ptr.add(export_directory_RVA as usize);
@@ -59,23 +59,25 @@ fn getFuncAddressByHash(lib: &str, hash: u64){
                 let img_export_directory: &IMAGE_EXPORT_DIRECTORY = &*(export_directory_addr as *const IMAGE_EXPORT_DIRECTORY);
                 //println!("{:?}", img_export_directory);
 
-                let addr_func_RVA: *const u64 = base_ptr.add(img_export_directory.AddressOfFunctions as usize) as *const u64;
+                let addr_func_RVA: *const u32 = base_ptr.add(img_export_directory.AddressOfFunctions as usize) as *const u32;
                 println!("[i] address of function RVA : {:?}", addr_func_RVA);
 
-                let addr_names_RVA: *const u64 = base_ptr.add(img_export_directory.AddressOfNames as usize) as *const u64;
+                let addr_names_RVA: *const u32 = base_ptr.add(img_export_directory.AddressOfNames as usize) as *const u32;
                 println!("[i] address of names RVA : {:?}", addr_names_RVA);
 
-                let addr_names_ordinals_RVA: *const u64 = base_ptr.add(img_export_directory.AddressOfNameOrdinals as usize) as *const u64;
+                let addr_names_ordinals_RVA: *const u32 = base_ptr.add(img_export_directory.AddressOfNameOrdinals as usize) as *const u32;
                 println!("[i] address of names ordinals RVA : {:?}", addr_names_ordinals_RVA);
 
-                let f_num: usize = img_export_directory.NumberOfFunctions as usize;
+                let f_num: isize = img_export_directory.NumberOfFunctions as isize;
                 println!("[i] Number of functions : {:?}", f_num);
 
                 for i in 0..f_num {
-                    let func_name_RVA: u64 = addr_names_RVA.add(i*mem::size_of::<u64>()) as u64;
-                    let func_name_VA: *const u64 = base_ptr.add(func_name_RVA as usize) as *const u64;
-
-                    //println!("{:?}", func_name_VA);
+                    let func_name_RVA: u32 = *addr_names_RVA.offset(i as isize) as u32;
+                    println!("{:?}", func_name_RVA);
+                    let func_name_VA: *const u32 = base_ptr.add(func_name_RVA as usize) as *const u32;
+                    println!("{:?}", func_name_VA);
+                    let func_name_str: &str = str::from_utf8(slice::from_raw_parts(func_name_VA as *const u8, mem::size_of::<u32>())).unwrap_or("Error with string");
+                    println!("{:?}", func_name_str);
                 }
 
             },
