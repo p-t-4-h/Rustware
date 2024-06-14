@@ -29,9 +29,8 @@ fn getHashFromFunc(funcName: &str) -> u32 {
     hash
 }
 
-fn getFuncAddressByHash(lib: &str, hash: u32){
+fn getFuncAddressByHash(lib: &str, hash: u32) -> *const u32{
     unsafe {
-        let functionAddress: *mut u32 = ptr::null_mut();
 
         let lib_ptr: PCSTR = PCSTR::from_raw(format!("{}\0", lib).as_ptr());
 
@@ -86,14 +85,21 @@ fn getFuncAddressByHash(lib: &str, hash: u32){
                     let func_name_str: &str = str::from_utf8(slice::from_raw_parts(func_name_VA_ptr, len)).unwrap_or("Error with string");
                     //println!("{:?}", func_name_str);
 
-                    let func_addr_RVA: *const u32 = ptr::null();
-
                     let func_name_hash: u32 = getHashFromFunc(func_name_str) as u32;
                     
                     if func_name_hash == hash {
-                        println!("{}", func_name_str);
+                        let func_addr_RVA: *const u32 = addr_func_RVA.offset(*addr_names_ordinals_RVA.offset(i as isize) as isize);
+                        let func_addr: *const u32 = base_ptr.add(func_addr_RVA as usize) as *const u32;
+                        println!("{:?}", func_addr);
+
+                        return func_addr;
                     }
+                        
+                    
+                    
                 }
+
+                ptr::null() as *const u32
 
             },
 
