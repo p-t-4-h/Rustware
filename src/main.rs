@@ -9,11 +9,12 @@ use windows::{
         System::{
             Memory::{VirtualAllocEx, VirtualProtectEx, VirtualFree, MEM_COMMIT, MEM_RESERVE, MEM_RELEASE, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, PAGE_READWRITE, VIRTUAL_ALLOCATION_TYPE},
             Diagnostics::Debug::{WriteProcessMemory, IsDebuggerPresent, CheckRemoteDebuggerPresent, IMAGE_NT_HEADERS32, IMAGE_NT_HEADERS64, IMAGE_DIRECTORY_ENTRY_EXPORT}, 
-            Threading::{CreateRemoteThreadEx, OpenProcess, WaitForSingleObject, PROCESS_ALL_ACCESS, INFINITE, PROCESS_ACCESS_RIGHTS},
+            Threading::{CreateRemoteThreadEx, OpenProcess, WaitForSingleObject, PROCESS_ALL_ACCESS, INFINITE, PROCESS_ACCESS_RIGHTS, LPPROC_THREAD_ATTRIBUTE_LIST, LPTHREAD_START_ROUTINE},
             LibraryLoader::LoadLibraryA,
             SystemServices::{IMAGE_DOS_HEADER, IMAGE_EXPORT_DIRECTORY},
         },
         Foundation::{CloseHandle, BOOL, HMODULE, HANDLE},
+        Security::SECURITY_ATTRIBUTES,
     },
     core::{PCSTR, Result},
 };
@@ -44,8 +45,32 @@ type XCloseHandle = unsafe extern "system" fn(
     hobject: HANDLE
 ) -> Result<()>;
 
+type XWriteProcessMemory = unsafe extern "system" fn(
+    hprocess: HANDLE,
+    lpbaseaddress: *const c_void,
+    lpbuffer: *const c_void,
+    nsize: usize,
+    lpnumberofbyteswritten: Option<*mut usize>
+) -> Result<()>;
 
+type XVirtualProtectEx = unsafe extern "system" fn(
+    hprocess: HANDLE,
+    lpaddress: *const c_void,
+    dwsize: usize,
+    flnewprotect: PAGE_PROTECTION_FLAGS,
+    lpfloldprotect: *mut PAGE_PROTECTION_FLAGS
+) -> Result<()>;
 
+type XCreateRemoteThreadEx = unsafe extern "system" fn(
+    hprocess: HANDLE,
+    lpthreadattributes: Option<*const SECURITY_ATTRIBUTES>,
+    dwstacksize: usize,
+    lpstartaddress: LPTHREAD_START_ROUTINE,
+    lpparameter: Option<*const c_void>,
+    dwcreationflags: u32,
+    lpattributelist: LPPROC_THREAD_ATTRIBUTE_LIST,
+    lpthreadid: Option<*mut u32>
+) -> Result<HANDLE>;
 
    
 fn getHashFromFunc(funcName: &str) -> u32 {
