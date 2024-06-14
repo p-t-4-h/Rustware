@@ -26,7 +26,7 @@ type xOpenProcess = unsafe extern "system" fn(
 type xCheckRemoteDebuggerPresent = unsafe extern "system" fn(
     hprocess: HANDLE,
     pbdebuggerpresent: *mut BOOL
-) -> Result<()>
+) -> Result<()>;
 
 type xIsDebuggerPresent = unsafe extern "system" fn() -> BOOL;
 
@@ -37,6 +37,11 @@ type xVirtualAllocEx = unsafe extern "system" fn(
     flallocationtype: VIRTUAL_ALLOCATION_TYPE,
     flprotect: PAGE_PROTECTION_FLAGS
 ) -> *mut c_void;
+
+type xCloseHandle = unsafe extern "system" fn(
+    hobject: HANDLE
+) -> Result<()>;
+
 
 
 
