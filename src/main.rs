@@ -1,6 +1,8 @@
 #![allow(unused_imports)]
 #![allow(non_snake_case)]
+#![allow(dead_code)]
 #![allow(unused_variables)]
+#![allow(improper_ctypes_definitions)]
 
 use windows::{
     Win32::{
@@ -17,20 +19,20 @@ use windows::{
 };
 use std::{ptr::{self, null_mut, null}, process, mem, str, slice, os::raw::c_void, option::Option};
 
-type xOpenProcess = unsafe extern "system" fn(
+type XOpenProcess = unsafe extern "system" fn(
     dwdesiredaccess: PROCESS_ACCESS_RIGHTS,
     binherithandle: BOOL,
     dwprocessid: u32
 ) -> Result<HANDLE>;
 
-type xCheckRemoteDebuggerPresent = unsafe extern "system" fn(
+type XCheckRemoteDebuggerPresent = unsafe extern "system" fn(
     hprocess: HANDLE,
     pbdebuggerpresent: *mut BOOL
 ) -> Result<()>;
 
-type xIsDebuggerPresent = unsafe extern "system" fn() -> BOOL;
+type XIsDebuggerPresent = unsafe extern "system" fn() -> BOOL;
 
-type xVirtualAllocEx = unsafe extern "system" fn(
+type XVirtualAllocEx = unsafe extern "system" fn(
     hprocess: HANDLE,
     lpaddress: Option<*const c_void>,
     dwsize: usize,
@@ -38,7 +40,7 @@ type xVirtualAllocEx = unsafe extern "system" fn(
     flprotect: PAGE_PROTECTION_FLAGS
 ) -> *mut c_void;
 
-type xCloseHandle = unsafe extern "system" fn(
+type XCloseHandle = unsafe extern "system" fn(
     hobject: HANDLE
 ) -> Result<()>;
 
