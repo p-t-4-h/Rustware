@@ -15,7 +15,7 @@ use windows::{
     },
     core::{PCSTR, Result},
 };
-use std::{ptr::{self, null_mut, null}, process, mem, str, slice, ffi::CStr};
+use std::{ptr::{self, null_mut, null}, process, mem, str, slice};
 
    
 fn getHashFromFunc(funcName: &str) -> u32 {
