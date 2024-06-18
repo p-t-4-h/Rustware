@@ -10,10 +10,10 @@ use windows::{
             Memory::{VirtualAllocEx, VirtualProtectEx, VirtualFree, MEM_COMMIT, MEM_RESERVE, MEM_RELEASE, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, PAGE_READWRITE, VIRTUAL_ALLOCATION_TYPE, VIRTUAL_FREE_TYPE},
             Diagnostics::Debug::{WriteProcessMemory, IsDebuggerPresent, CheckRemoteDebuggerPresent, IMAGE_NT_HEADERS32, IMAGE_NT_HEADERS64, IMAGE_DIRECTORY_ENTRY_EXPORT}, 
             Threading::{CreateRemoteThreadEx, OpenProcess, WaitForSingleObject, PROCESS_ALL_ACCESS, INFINITE, PROCESS_ACCESS_RIGHTS, LPPROC_THREAD_ATTRIBUTE_LIST, LPTHREAD_START_ROUTINE},
-            LibraryLoader::LoadLibraryA,
+            LibraryLoader::{LoadLibraryA, GetProcAddress},
             SystemServices::{IMAGE_DOS_HEADER, IMAGE_EXPORT_DIRECTORY},
         },
-        Foundation::{CloseHandle, BOOL, HMODULE, HANDLE, WAIT_EVENT},
+        Foundation::{CloseHandle, BOOL, HMODULE, HANDLE, WAIT_EVENT, FARPROC},
         Security::SECURITY_ATTRIBUTES,
     },
     core::{PCSTR, Result},
@@ -129,7 +129,7 @@ fn getFuncAddressByHash(lib: &str, hash: u32) -> *const u32{
                 let addr_names_RVA: *const u32 = base_ptr.add(img_export_directory.AddressOfNames as usize) as *const u32;
                 println!("[i] address of names RVA : {:?}", addr_names_RVA);
 
-                let addr_names_ordinals_RVA: *const u32 = base_ptr.add(img_export_directory.AddressOfNameOrdinals as usize) as *const u32;
+                let addr_names_ordinals_RVA: *const u16 = base_ptr.add(img_export_directory.AddressOfNameOrdinals as usize) as *const u16;
                 println!("[i] address of names ordinals RVA : {:?}", addr_names_ordinals_RVA);
 
                 let f_num: isize = img_export_directory.NumberOfFunctions as isize;
@@ -153,14 +153,12 @@ fn getFuncAddressByHash(lib: &str, hash: u32) -> *const u32{
                     let func_name_hash: u32 = getHashFromFunc(func_name_str) as u32;
                     
                     if func_name_hash == hash {
-                        let func_addr_RVA: *const u32 = addr_func_RVA.offset(*addr_names_ordinals_RVA.offset(i as isize) as isize);
+                        let func_addr_RVA: u32 = *addr_func_RVA.offset(*addr_names_ordinals_RVA.offset(i as isize) as isize) as u32;
                         let func_addr: *const u32 = base_ptr.add(func_addr_RVA as usize) as *const u32;
-                        println!("[i] address of function {:?}", func_addr);
+                        println!("[i] address of {} : {:?} / RVA : {:?}", func_name_str, func_addr, func_addr_RVA);
 
                         return func_addr;
                     }
-                        
-                    
                     
                 }
 
@@ -191,24 +189,25 @@ fn main() {
 
     //getFuncAddressByHash("kernel32", 0xf92f7b);
 
+    //println!("{:#x}", getHashFromFunc("CheckRemoteDebuggerPresent"));
+
     let pid = process::id();
 
     unsafe {
 
-        let func_addr: *const u32 = getFuncAddressByHash("kernel32", 0x9e08d0);
+        let func_addr: *const u32 = getFuncAddressByHash("kernel32.dll", 0x9e08d0);
 
-        if func_addr.is_null() {
-            process::exit(-1);
-        }
+        //if func_addr.is_null() {
+        //    process::exit(-1);
+        //}
         
-        let XOpenProcess: TOpenProcess = mem::transmute(func_addr);
-
+        //let XOpenProcess: TOpenProcess = mem::transmute(func_addr);
+        
         println!("[i] Trying to open a Handle for the Process {pid}");
-        match XOpenProcess(PROCESS_ALL_ACCESS, false.into(), pid) {
+        match OpenProcess(PROCESS_ALL_ACCESS, false, pid) {
             Ok(hprocess) => 'p: {
-                println!("Nah");
                 let mut debugger_present: BOOL = BOOL(0);
-                
+
                 if CheckRemoteDebuggerPresent(hprocess, &mut debugger_present as *mut BOOL).is_ok() && debugger_present.as_bool() {
                     process::exit(-1);
                 }
