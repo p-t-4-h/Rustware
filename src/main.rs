@@ -190,7 +190,7 @@ fn main() {
 
     //getFuncAddressByHash("kernel32", 0xf92f7b);
 
-    println!("{:#x}", getHashFromFunc("CheckRemoteDebuggerPresent"));
+    println!("{:#x}", getHashFromFunc("IsDebuggerPresent"));
 
     let pid = process::id();
 
@@ -208,7 +208,8 @@ fn main() {
             process::exit(-1);
         }
 
-        if IsDebuggerPresent().as_bool(){
+        let XIsDebuggerPresent: TIsDebuggerPresent = mem::transmute(getFuncAddressByHash("kernel32.dll", 0xf4ed1b) as *const u32);
+        if XIsDebuggerPresent().as_bool(){
             process::exit(-1);
         }
 
