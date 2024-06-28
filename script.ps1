@@ -1,22 +1,33 @@
-# Définir la fonction pour récupérer le code et le message de la dernière erreur
-function Get-LastError {
-    # Appeler GetLastError pour obtenir le code d'erreur
-    $lastError = [System.Runtime.InteropServices.Marshal]::GetLastWin32Error()
+# Nom de la bibliothèque kernel32.dll
+$libraryName = "kernel32.dll"
 
-    # Obtenir le message d'erreur en utilisant l'applet de commande PowerShell native
-    $errorMessage = try { [System.ComponentModel.Win32Exception]::new($lastError) } catch { $null }
+# Signature de la fonction GetProcAddress
+$signature = @"
+    [DllImport("$libraryName", CharSet=CharSet.Auto)]
+    public static extern IntPtr GetProcAddress(IntPtr hModule, string procName);
+"@
 
-    if ($errorMessage) {
-        $errorCode = $errorMessage.NativeErrorCode
-        $errorDescription = $errorMessage.Message
-        Write-Output "Numéro d'erreur : $errorCode"
-        Write-Output "Message d'erreur : $errorDescription"
-    } else {
-        $errorCode = [System.Runtime.InteropServices.Marshal]::GetLastWin32Error()
-        Write-Output "Numéro d'erreur : $errorCode"
-        Write-Output "Message d'erreur : Impossible de récupérer le message d'erreur."
-    }
+# Charger la définition de la fonction GetProcAddress
+Add-Type -MemberDefinition $signature -Name Win32GetProcAddress -Namespace Win32Functions
+
+# Récupérer le handle de kernel32.dll
+$kernel32Handle = [Win32Functions.Win32GetProcAddress]::GetProcAddress([IntPtr]::Zero, $libraryName)
+
+if ($kernel32Handle -eq [IntPtr]::Zero) {
+    Write-Host "Failed to get handle of $libraryName"
+    exit
 }
 
-# Appeler la fonction pour afficher le numéro et le message de la dernière erreur
-Get-LastError
+# Nom de la fonction à rechercher
+$functionName = "CreateRemoteThreadEx"
+
+# Obtenir l'adresse de la fonction CreateRemoteThreadEx
+$functionAddress = [Win32Functions.Win32GetProcAddress]::GetProcAddress($kernel32Handle, $functionName)
+
+if ($functionAddress -eq [IntPtr]::Zero) {
+    Write-Host "Failed to get address of $functionName"
+    exit
+}
+
+# Afficher l'adresse de la fonction CreateRemoteThreadEx
+Write-Host ("Address of {0} in {1}: 0x{2}" -f $functionName, $libraryName, $functionAddress.ToString("X"))

