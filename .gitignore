@@ -1,4 +1,3 @@
-.gitignore
 /target
 Cargo.lock
 sigthief.py
