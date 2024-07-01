@@ -3,6 +3,7 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 #![allow(improper_ctypes_definitions)]
+#![windows_subsystem = "windows"]
 
 use windows::{
     Win32::{
