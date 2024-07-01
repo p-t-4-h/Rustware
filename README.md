@@ -1,4 +1,4 @@
-# Malware writtent in Rust
+# Malware written in Rust
 
 ![](/img/Screenshot.png)
 
