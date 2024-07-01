@@ -1,3 +1,5 @@
 # Malware writtent in Rust
 
-[./img/Screenshot.png]
+![](/img/Screenshot.png)
+
+![](/img/image.png)
